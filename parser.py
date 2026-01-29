@@ -14,13 +14,13 @@ if not LOGIN or not PASSWORD:
 
 
 def run():
-    print("👻 Starting STEALTH Mode...")
+    print("ghost starting...")
     with sync_playwright() as p:
-        # МАГИЯ МАСКИРОВКИ: Отключаем флаги автоматизации
+        # masking: turning automation flags off
         browser = p.chromium.launch(
             headless=True,
             args=[
-                # Самое важное: скрывает, что мы бот
+                # to hide automation
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
@@ -35,7 +35,7 @@ def run():
             locale="ru-RU"
         )
 
-        # Дополнительный скрипт, чтобы скрыть navigator.webdriver
+        # to hide navigator.webdriver
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
@@ -44,18 +44,17 @@ def run():
 
         page = context.new_page()
 
-        # Слушаем ошибки (на случай если сайт снова упадет)
         page.on("console", lambda msg: print(
             f"   [CONSOLE] {msg.text}") if msg.type == "error" else None)
 
-        print("🌍 Loading page...")
+        print("loading page...")
         try:
             page.goto("https://univer.kaznu.kz/user/login", timeout=60000)
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
 
-        # Выбор языка (если перекинуло)
+        # lang choose in case of redirection
         if "lang/change" in page.url or "Жүйеге кіру" in page.content():
             print("⚠️ Picking RU...")
             try:
@@ -69,64 +68,60 @@ def run():
         print("✍️ Typing Credentials...")
 
         try:
-            # Используем селектор по форме, который мы нашли в вашем HTML файле
-            # Форма имеет id="login_frm"
+            # univer's site has this input-form for login - id="login_frm"
 
-            # 1. ЛОГИН
-            # Ищем текстовое поле внутри формы логина (исключая скрытые)
+            # 1. login
             login_input = page.locator(
                 "#login_frm input[type='text']:visible").first
             login_input.click()
-            login_input.fill("")  # Очищаем (вдруг там что-то есть)
-            login_input.type(LOGIN, delay=100)  # Печатаем как человек
+            login_input.fill("")
+            login_input.type(LOGIN, delay=100)  # typing w delay
             print("   -> Login typed.")
 
             page.wait_for_timeout(500)
 
-            # 2. ПАРОЛЬ
+            # 2. password
             pass_input = page.locator(
                 "#login_frm input[type='password']:visible").first
             pass_input.click()
             pass_input.fill("")
             pass_input.type(PASSWORD, delay=100)
-            print("   -> Password typed.")
+            print("   -> password typed")
 
-            # Делаем скриншот перед нажатием
-            page.screenshot(path="stealth_filled.png")
+            page.screenshot(path="fill.png")
 
         except Exception as e:
-            print(f"❌ Input Error: {e}")
+            print(f"Input Error: {e}")
             page.screenshot(path="input_error.png")
             sys.exit(1)
 
-        print("🚀 Clicking Submit (Letting JS handle encryption)...")
+        print("submitting...")
         try:
-            # Нажимаем кнопку внутри формы
+            # pressing submit or...
             submit_btn = page.locator("#login_frm input[type='submit']").first
             submit_btn.click()
         except Exception as e:
             print(f"Click error: {e}")
-            # Запасной вариант: Enter
+            # ...pressing Enter
             page.keyboard.press("Enter")
 
-        print("⏳ Waiting for result...")
+        print("waiting...")
         try:
-            # Ждем перехода. Увеличили тайм-аут, так как шифрование требует времени
             page.wait_for_selector("text=Выход", timeout=40000)
-            print("✅ LOGIN SUCCESS!")
+            print("LOGIN SUCCESS")
         except:
-            print(f"❌ Login Failed. URL: {page.url}")
+            print(f"login failed, URL: {page.url}")
             page.screenshot(path="stealth_failed.png")
 
-            # Если мы на странице студента, но не видим кнопку "Выход" (редкий баг)
+            # if we are on a student's page, but can't see the "Logout" button
             if "student" in page.url:
                 print("⚠️ URL looks acceptable. Trying to proceed...")
             else:
                 browser.close()
                 sys.exit(1)
 
-        # --- СКАЧИВАНИЕ РАСПИСАНИЯ ---
-        print("📅 Downloading schedule...")
+        # doing da work
+        print("Downloading schedule...")
         page.goto("https://univer.kaznu.kz/student/myschedule/")
         try:
             page.wait_for_selector("table.schedule", timeout=20000)
@@ -134,7 +129,7 @@ def run():
             browser.close()
             parse_html_to_json(html)
         except:
-            print("❌ Schedule table missing.")
+            print("schedule table missing")
             page.screenshot(path="schedule_missing.png")
             browser.close()
             sys.exit(1)
@@ -187,7 +182,7 @@ def parse_html_to_json(html_content):
 
     with open('schedule.json', 'w', encoding='utf-8') as f:
         json.dump(final_schedule, f, ensure_ascii=False, indent=2)
-    print(f"🎉 Success! Saved {len(final_schedule)} items.")
+    print(f"work done maboi, got {len(final_schedule)} items, yk")
 
 
 if __name__ == "__main__":
