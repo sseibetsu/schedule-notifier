@@ -2,7 +2,7 @@
 
 Automated schedule parser for Univer 2.0 system. Runs daily on **GitHub Actions**, bypasses bot protection, and updates `schedule.json` if changes are detected.
 
-## 🚀 Quick Setup (GitHub):
+## Quick Setup (GitHub):
 1. Create TG bot via @BotFather, and copy the token of your new bot.
 2. Add your bot into the any of TG chats, tag him once or twice, and go to:
 https://api.telegram.org/bot<YOUR_BOTS_TOKEN>/getUpdates, there you will see JSON page and you have to find the chat_id
