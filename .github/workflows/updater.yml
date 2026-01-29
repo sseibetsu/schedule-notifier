@@ -46,12 +46,14 @@ jobs:
           git config --global user.name 'Schedule Bot'
           git config --global user.email 'bot@noreply.github.com'
           
-          # changes check
-          if [[ -n $(git status -s) ]]; then
+          # ИСПРАВЛЕНИЕ: Проверяем изменения ТОЛЬКО в файле schedule.json
+          if [[ -n $(git status --porcelain schedule.json) ]]; then
             git add schedule.json
             git commit -m "Auto-update schedule"
             git push
             echo "SCHEDULE HAS BEEN UPDATED"
           else
-            echo "there was nothing, bruh"
+            echo "Расписание не изменилось (или не скачалось)."
+            echo "Untracked files (ignored):"
+            git status -s
           fi
