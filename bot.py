@@ -13,7 +13,7 @@ TIMEZONE = pytz.timezone('Asia/Almaty')
 async def send_reminder(text):
     # берем токен из секретов GitHub
     token = os.environ.get("7631132297:AAGbkZIU46JEgQRQYyAJNlH0uS_OZbOfGTw")
-    chat_id = os.environ.get("seibetsu")
+    chat_id = os.environ.get("@seibetsu")
 
     bot = Bot(token=token)
     await bot.send_message(chat_id=chat_id, text=text)
