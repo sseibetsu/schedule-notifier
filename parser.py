@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import time
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 
@@ -43,28 +44,40 @@ def run():
             except:
                 print("couldn't choose the lang, trying another attempt...")
 
+        page.wait_for_timeout(2000)
+
         print("implementing data...")
 
-        page.locator("input[type='password']").fill(PASSWORD)
+        try:
+            if page.locator("input[name='makelogin']").count() > 0:
+                print("found 'makelogin' field")
+                page.fill("input[name='makelogin']", LOGIN)
+            elif page.locator("input[name='login']").count() > 0:
+                print("found 'login' field")
+                page.fill("input[name='login']", LOGIN)
+            else:
+                print("doing with first visible input space...")
+                page.locator("input[type='text']:visible").first.fill(LOGIN)
+        except Exception as e:
+            print(f"Error filling login: {e}")
 
-        if page.locator("input[name='makelogin']").count() > 0:
-            print("found 'makelogin' field")
-            page.fill("input[name='makelogin']", LOGIN)
-        elif page.locator("input[name='login']").count() > 0:
-            print("found 'login' field")
-            page.fill("input[name='login']", LOGIN)
-        elif page.locator("#modal_auth_login").count() > 0:
-            print("found ID modal_auth_login")
-            page.fill("#modal_auth_login", LOGIN)
-        else:
-            print("couldn't retrieve the login input, doing with first input space...")
-            page.locator("input[type='text']").first.fill(LOGIN)
+        page.wait_for_timeout(1000)
+
+        try:
+            page.locator("input[type='password']:visible").first.fill(PASSWORD)
+        except Exception as e:
+            print(f"Error filling password: {e}")
+            page.screenshot(path="password_error.png")
 
         print("logging in...")
-        page.locator("input[type='submit']").click()
+        if page.locator("input[value='Войти в систему']").is_visible():
+            page.locator("input[value='Войти в систему']").click()
+        else:
+            page.locator("input[type='submit']").click()
 
         try:
             print("waiting for successful login...")
+            # whether you are using ru, eng or kk, you can change the name of the logout button below
             page.wait_for_selector("text=Выход", timeout=20000)
             print("logged in successfully")
         except:
