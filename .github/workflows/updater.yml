@@ -34,7 +34,7 @@ jobs:
           UNI_PASSWORD: ${{ secrets.UNI_PASSWORD }}
         run: python parser.py
 
-        - name: Загрузить скриншоты ошибок (если были)
+      - name: Загрузить скриншоты ошибок (если были)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -55,5 +55,3 @@ jobs:
           else
             echo "there was nothing, bruh"
           fi
-
-          
