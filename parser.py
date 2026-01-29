@@ -14,7 +14,7 @@ if not LOGIN or not PASSWORD:
 
 
 def run():
-    print("🤖 Starting FRANKENSTEIN Mode...")
+    print("🤖 Starting LAZY HUMAN Mode...")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -22,20 +22,14 @@ def run():
         )
         page = context.new_page()
 
-        # --- СЕТЕВОЙ ШПИОН ---
-        # Мы будем слушать, что уходит на сервер
-        page.on("request", lambda request: print(
-            f"   >> POST Request: {request.url} \n      Data: {request.post_data}") if request.method == "POST" else None)
-        page.on("response", lambda response: print(
-            f"   << Response: {response.status} from {response.url}") if "login" in response.url else None)
-
         print("🌍 Loading page...")
         try:
             page.goto("https://univer.kaznu.kz/user/login", timeout=60000)
         except Exception as e:
-            print(f"Page load error: {e}")
+            print(f"Error: {e}")
             sys.exit(1)
 
+        # Если вылез выбор языка
         if "lang/change" in page.url or "Жүйеге кіру" in page.content():
             print("⚠️ Picking RU...")
             try:
@@ -44,70 +38,63 @@ def run():
             except:
                 pass
 
-        page.wait_for_timeout(2000)
+        # Даем странице "подышать" перед стартом
+        page.wait_for_timeout(3000)
 
-        print("✍️ Typing Credentials...")
+        print("✍️ Typing Credentials (SLOWLY)...")
+
         try:
             # 1. ЛОГИН
             login_input = page.locator("input[type='text']").first
             login_input.click()
-            login_input.press_sequentially(LOGIN, delay=50)
+            # Очищаем поле на всякий случай
+            login_input.fill("")
+            # Печатаем по одной букве раз в 300мс (0.3 сек) - это достаточно медленно
+            # Если поставить 0.5, то на длинных логинах можем упереться в тайм-аут GitHub
+            login_input.press_sequentially(LOGIN, delay=300)
+            print("   -> Login typed.")
+
+            page.wait_for_timeout(1000)  # Пауза между полями
 
             # 2. ПАРОЛЬ
             pass_input = page.locator("input[type='password']").first
             pass_input.click()
-            pass_input.press_sequentially(PASSWORD, delay=50)
+            pass_input.fill("")
+            # Пароль печатаем еще медленнее (0.5 сек)
+            pass_input.press_sequentially(PASSWORD, delay=500)
+            print("   -> Password typed.")
 
-            print("   -> Credentials typed.")
         except Exception as e:
             print(f"❌ Input Error: {e}")
             sys.exit(1)
 
-        # --- ОПЕРАЦИЯ "ФРАНКЕНШТЕЙН" (FIX NO NAME ATTRIBUTE) ---
-        print("💉 Injecting missing 'NAME' attributes...")
-        page.evaluate("""
-            // Находим поле логина и даем ему имя 'login'
-            var l = document.querySelector("input[type='text']");
-            if(l) { 
-                l.setAttribute("name", "login"); 
-                console.log("Login name set.");
-            }
-            
-            // Находим поле пароля и даем ему имя 'password'
-            var p = document.querySelector("input[type='password']");
-            if(p) { 
-                p.setAttribute("name", "password"); 
-                console.log("Password name set.");
-            }
-        """)
-
-        page.wait_for_timeout(1000)
+        print("☕ Waiting 5 seconds before Submit (letting scripts work)...")
+        page.wait_for_timeout(5000)
 
         # --- ОТПРАВКА ---
-        print("🚀 Submitting...")
-        try:
-            # Жмем кнопку
-            submit_btn = page.locator("input[type='submit']").first
-            submit_btn.click()
-        except:
-            # Если кнопки нет, жмем Enter
-            page.keyboard.press("Enter")
+        print("🚀 Clicking Submit...")
 
-        # --- ОЖИДАНИЕ ---
+        # Пробуем нажать Enter (самый человеческий способ)
+        try:
+            page.keyboard.press("Enter")
+        except:
+            # Если не сработало, ищем кнопку
+            try:
+                page.locator("input[type='submit']").first.click()
+            except:
+                pass
+
         print("⏳ Waiting for result...")
         try:
-            # Ждем выхода (успех) или перезагрузки (провал)
-            # Ждем чуть дольше
-            page.wait_for_selector("text=Выход", timeout=25000)
+            # Ждем долго, сайт может думать
+            page.wait_for_selector("text=Выход", timeout=40000)
             print("✅ LOGIN SUCCESS! We are inside.")
         except:
-            print("❌ Login Failed (Timeout).")
-            # Снимаем экран, чтобы понять, где мы
-            page.screenshot(path="login_failed_final.png")
-
-            # Проверяем, может мы на странице расписания, но "Выход" называется иначе?
-            if "Schedule" in page.url or "student" in page.url:
-                print("⚠️ URL changed to student area, assuming success...")
+            print("❌ Login Failed.")
+            page.screenshot(path="login_failed_lazy.png")
+            # Проверка на случай успеха с другим URL
+            if "student" in page.url or "Schedule" in page.url:
+                print("⚠️ URL changed to student zone. Assuming success!")
             else:
                 browser.close()
                 sys.exit(1)
@@ -122,7 +109,6 @@ def run():
             parse_html_to_json(html)
         except:
             print("❌ Schedule table missing.")
-            page.screenshot(path="schedule_missing.png")
             browser.close()
             sys.exit(1)
 
