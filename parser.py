@@ -12,13 +12,16 @@ if not LOGIN or not PASSWORD:
     print("❌ Login/Pass not found.")
     sys.exit(1)
 
+# ЗАЩИТА ОТ ДУРАКА: Проверяем, нет ли лишних пробелов
+if len(PASSWORD) != len(PASSWORD.strip()):
+    print("⚠️ WARNING: В пароле найдены лишние пробелы! Проверьте GitHub Secrets.")
+
 
 def run():
-    print("🤖 Starting CYBORG Mode...")
+    print("🤖 Starting CYBORG Mode v2...")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
-            # Маскируемся под обычный Chrome
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         page = context.new_page()
@@ -30,7 +33,7 @@ def run():
             print(f"Page load error: {e}")
             sys.exit(1)
 
-        # Выбор языка (если есть)
+        # Выбор языка
         if "lang/change" in page.url or "Жүйеге кіру" in page.content():
             print("⚠️ Picking RU...")
             try:
@@ -39,59 +42,77 @@ def run():
             except:
                 pass
 
-        page.wait_for_timeout(3000)  # Даем прогрузиться
+        page.wait_for_timeout(2000)
 
-        print("✍️ Typing Credentials (Human-like)...")
-
+        print("✍️ Typing Credentials...")
         try:
             # 1. ЛОГИН
-            # Берем ПЕРВОЕ поле типа text (судя по логам, это оно)
             login_input = page.locator("input[type='text']").first
             login_input.click()
-            # Печатаем с задержкой 100мс между клавишами
-            login_input.press_sequentially(LOGIN, delay=100)
-            print("   -> Login typed.")
+            login_input.fill(LOGIN)  # .fill надежнее для логина
+            print("   -> Login filled.")
 
-            page.wait_for_timeout(1000)  # Пауза как у человека
+            page.wait_for_timeout(500)
 
-            # 2. ПАРОЛЬ
-            # Берем ПЕРВОЕ поле типа password
+            # 2. ПАРОЛЬ (Печатаем по буквам, как человек)
             pass_input = page.locator("input[type='password']").first
             pass_input.click()
             pass_input.press_sequentially(PASSWORD, delay=100)
             print("   -> Password typed.")
 
-            # 📸 КОНТРОЛЬНЫЙ СНИМОК (Ввелись ли данные?)
+            # Скриншот перед отправкой
             page.screenshot(path="filled_form.png")
-
-            page.wait_for_timeout(1000)
-
-            # 3. КНОПКА
-            # Ищем по типу submit
-            submit_btn = page.locator("input[type='submit']").first
-            print("👊 Clicking Submit...")
-            submit_btn.click()
 
         except Exception as e:
             print(f"❌ Input Error: {e}")
             page.screenshot(path="input_error.png")
             sys.exit(1)
 
-        # Ждем результата
+        # --- ТРОЙНОЙ УДАР ПО КНОПКЕ ---
+        print("🚀 Submitting...")
+
+        # СПОСОБ 1: Клавиша Enter
+        print("   [1] Trying ENTER key...")
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(3000)  # Ждем реакции
+
+        # Проверяем, ушли ли мы со страницы логина?
+        if "/user/login" not in page.url and "Выход" in page.content():
+            print("   ✅ Enter worked!")
+        else:
+            # СПОСОБ 2: Жесткий клик
+            print("   [2] Enter didn't work. Trying FORCE CLICK...")
+            try:
+                page.locator("input[type='submit']").first.click(force=True)
+            except:
+                pass
+            page.wait_for_timeout(3000)
+
+        # СПОСОБ 3: JS Injection (Если ничего не помогло)
+        if "/user/login" in page.url:
+            print("   [3] Click didn't work. Trying JS FORM SUBMIT...")
+            # Находим форму, в которой лежит пароль, и отправляем её принудительно
+            page.evaluate("""
+                const pass = document.querySelector("input[type='password']");
+                if(pass && pass.form) {
+                    pass.form.submit();
+                }
+            """)
+            page.wait_for_timeout(5000)
+
+        # --- ПРОВЕРКА РЕЗУЛЬТАТА ---
         print("⏳ Waiting for login result...")
         try:
-            # Ждем либо "Выход", либо перенаправления
-            page.wait_for_selector("text=Выход", timeout=20000)
-            print("✅ LOGIN SUCCESS!")
+            # Ищем любой признак успеха
+            page.wait_for_selector("text=Выход", timeout=15000)
+            print("✅ LOGIN SUCCESS! We are inside.")
         except:
-            print("❌ Login Failed (Timeout).")
-            # Делаем финальный снимок экрана с ошибкой
+            print("❌ Login Failed (Timeout). Still on login page.")
             page.screenshot(path="login_failed_final.png")
             browser.close()
-            # ВАЖНО: Выходим с ошибкой, чтобы GitHub не пытался сохранить пустой файл
             sys.exit(1)
 
-        # Качаем расписание
+        # --- СКАЧИВАНИЕ РАСПИСАНИЯ ---
         print("📅 Downloading schedule...")
         page.goto("https://univer.kaznu.kz/student/myschedule/")
         try:
@@ -100,8 +121,11 @@ def run():
             browser.close()
             parse_html_to_json(html)
         except:
-            print("❌ Schedule table missing.")
+            print("❌ Schedule table missing (but login worked).")
+            # Сохраняем HTML, чтобы понять, что мы видим
             page.screenshot(path="schedule_missing.png")
+            with open("debug_page.html", "w", encoding="utf-8") as f:
+                f.write(page.content())
             browser.close()
             sys.exit(1)
 
@@ -115,7 +139,6 @@ def parse_html_to_json(html_content):
     rows = table.find_all('tr')
     final_schedule = []
 
-    # Пропускаем шапку
     if len(rows) < 2:
         return
 
