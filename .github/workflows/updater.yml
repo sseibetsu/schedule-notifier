@@ -1,0 +1,50 @@
+name: schedule-updater
+
+on:
+  schedule:
+    # starting at 01:00 UTC (6 am Almaty time) every day
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-schedule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: download code of repo
+        uses: actions/checkout@v3
+
+      - name: setting Python up
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: getting libs
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps
+
+      - name: parsing
+        env:
+          # secrets for logging into the university portal
+          UNI_LOGIN: ${{ secrets.UNI_LOGIN }}
+          UNI_PASSWORD: ${{ secrets.UNI_PASSWORD }}
+        run: python parser.py
+
+      - name: saving if needed to
+        run: |
+          git config --global user.name 'Schedule Bot'
+          git config --global user.email 'bot@noreply.github.com'
+          
+          # changes check
+          if [[ -n $(git status -s) ]]; then
+            git add schedule.json
+            git commit -m "Auto-update schedule"
+            git push
+            echo "SCHEDULE HAS BEEN UPDATED"
+          else
+            echo "there was nothing, bruh"
+          fi
