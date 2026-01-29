@@ -34,8 +34,8 @@ jobs:
           UNI_PASSWORD: ${{ secrets.UNI_PASSWORD }}
         run: python parser.py
 
-      - name: Загрузить скриншоты ошибок (если были)
-        if: failure()
+      - name: Загрузить скриншоты
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: debug-screenshots
