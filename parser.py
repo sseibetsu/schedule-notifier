@@ -1,6 +1,6 @@
 import os
 import json
-import time
+import sys
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 
@@ -10,7 +10,7 @@ PASSWORD = os.environ.get("UNI_PASSWORD")
 
 if not LOGIN or not PASSWORD:
     print("login or pass not found.")
-    exit(1)
+    sys.exit(1)
 
 # 2. work is here
 
@@ -21,14 +21,19 @@ def run():
         # headless=True = no video processor
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
         page = context.new_page()
 
         # logging into the kaznu to retrieve schedule
         print("entering into the login page...")
-        page.goto("https://univer.kaznu.kz/user/login")
+        try:
+            page.goto("https://univer.kaznu.kz/user/login", timeout=60000)
+        except Exception as e:
+            print(f"Error loading page: {e}")
+            sys.exit(1)
 
-        # if 213 pops up
+        # if 213 pops up (Language selection)
         if "lang/change" in page.url or "Жүйеге кіру" in page.content():
             print("need to choose the lang, picking ru-RU...")
             try:
@@ -41,9 +46,17 @@ def run():
         print("implementing data...")
 
         page.locator("input[type='password']").fill(PASSWORD)
-        try:
+
+        if page.locator("input[name='makelogin']").count() > 0:
+            print("found 'makelogin' field")
+            page.fill("input[name='makelogin']", LOGIN)
+        elif page.locator("input[name='login']").count() > 0:
+            print("found 'login' field")
+            page.fill("input[name='login']", LOGIN)
+        elif page.locator("#modal_auth_login").count() > 0:
+            print("found ID modal_auth_login")
             page.fill("#modal_auth_login", LOGIN)
-        except:
+        else:
             print("couldn't retrieve the login input, doing with first input space...")
             page.locator("input[type='text']").first.fill(LOGIN)
 
@@ -51,18 +64,25 @@ def run():
         page.locator("input[type='submit']").click()
 
         try:
-            # whether you are using ru, eng or kk, you can change the name of the logout button below
-            page.wait_for_selector("text=Выход", timeout=15000)
-            print("logged in")
+            print("waiting for successful login...")
+            page.wait_for_selector("text=Выход", timeout=20000)
+            print("logged in successfully")
         except:
-            print("check github actions")
+            print("ERROR: Login failed. Check screenshot in artifacts.")
+            page.screenshot(path="login_error.png")
             browser.close()
-            return
+            sys.exit(1)
 
         print("going to the schedule...")
         page.goto("https://univer.kaznu.kz/student/myschedule/")
 
-        page.wait_for_selector("table.schedule", timeout=10000)
+        try:
+            page.wait_for_selector("table.schedule", timeout=20000)
+        except:
+            print("ERROR: Schedule table not found!")
+            page.screenshot(path="schedule_error.png")
+            browser.close()
+            sys.exit(1)
 
         html_content = page.content()
         browser.close()
@@ -79,18 +99,22 @@ def parse_html_to_json(html_content):
 
     if not table:
         print("couldn't find the schedule table in HTML.")
-        return
+        sys.exit(1)
 
     rows = table.find_all('tr')
     final_schedule = []
+
+    if len(rows) < 2:
+        print("Table seems empty.")
+        return
 
     for row in rows[1:]:
         cells = row.find_all('td')
         if len(cells) < 2:
             continue
 
-        time_text = cells[0].get_text(strip=True).split(
-            '-')[0]  # 09:00 instead of 09:00-10:30
+        time_raw = cells[0].get_text(strip=True)
+        time_text = time_raw.split('-')[0] if '-' in time_raw else time_raw
 
         for day_index, cell in enumerate(cells[1:]):
             group_div = cell.find('div', class_='groups')
@@ -107,7 +131,9 @@ def parse_html_to_json(html_content):
                 if params_p:
                     txt = params_p.get_text()
                     if "Ауд.:" in txt:
-                        room = txt.split("Ауд.:")[1].strip().split('\n')[0]
+                        parts = txt.split("Ауд.:")
+                        if len(parts) > 1:
+                            room = parts[1].strip().split('\n')[0]
 
                 final_schedule.append({
                     "day_of_week": day_index,
