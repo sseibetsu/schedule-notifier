@@ -45,40 +45,48 @@ def run():
                 print("couldn't choose the lang, trying another attempt...")
 
         page.wait_for_timeout(2000)
-
         print("implementing data...")
 
+        # --- НОВАЯ ЛОГИКА ВВОДА (TAB + Печать по буквам) ---
         try:
+            # 1. Кликаем точно в поле логина
+            login_field = None
             if page.locator("input[name='makelogin']").count() > 0:
-                print("found 'makelogin' field")
-                page.fill("input[name='makelogin']", LOGIN)
+                login_field = page.locator("input[name='makelogin']")
             elif page.locator("input[name='login']").count() > 0:
-                print("found 'login' field")
-                page.fill("input[name='login']", LOGIN)
+                login_field = page.locator("input[name='login']")
             else:
-                print("doing with first visible input space...")
-                page.locator("input[type='text']:visible").first.fill(LOGIN)
+                login_field = page.locator("input[type='text']:visible").first
+
+            # Очищаем и печатаем логин
+            login_field.click()
+            login_field.clear()
+            # press_sequentially печатает по буквам, как человек (delay=50мс)
+            login_field.press_sequentially(LOGIN, delay=50)
+            print("Login typed.")
+
+            # 2. Жмем TAB, чтобы перейти в поле пароля
+            page.keyboard.press("Tab")
+            page.wait_for_timeout(500)  # Короткая пауза
+
+            # 3. Печатаем пароль в то поле, которое сейчас активно (в фокусе)
+            # Это обходит проблему с поиском селектора
+            print("Typing password into focused field...")
+            page.keyboard.type(PASSWORD, delay=50)
+
+            # 4. Жмем Enter
+            print("Pressing Enter...")
+            page.keyboard.press("Enter")
+
         except Exception as e:
-            print(f"Error filling login: {e}")
-
-        page.wait_for_timeout(1000)
-
-        try:
-            page.locator("input[type='password']:visible").first.fill(PASSWORD)
-        except Exception as e:
-            print(f"Error filling password: {e}")
-            page.screenshot(path="password_error.png")
-
-        print("logging in...")
-        if page.locator("input[value='Войти в систему']").is_visible():
-            page.locator("input[value='Войти в систему']").click()
-        else:
-            page.locator("input[type='submit']").click()
+            print(f"Error during typing: {e}")
+            page.screenshot(path="typing_error.png")
+            sys.exit(1)
 
         try:
             print("waiting for successful login...")
-            # whether you are using ru, eng or kk, you can change the name of the logout button below
-            page.wait_for_selector("text=Выход", timeout=20000)
+            # Ждем выхода (увеличил тайм-аут до 30с)
+            page.wait_for_selector("text=Выход", timeout=30000)
             print("logged in successfully")
         except:
             print("ERROR: Login failed. Check screenshot in artifacts.")
