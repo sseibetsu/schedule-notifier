@@ -34,6 +34,13 @@ jobs:
           UNI_PASSWORD: ${{ secrets.UNI_PASSWORD }}
         run: python parser.py
 
+        - name: Загрузить скриншоты ошибок (если были)
+        if: failure()  # Выполнять только если скрипт упал
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshots
+          path: ./*.png
+
       - name: saving if needed to
         run: |
           git config --global user.name 'Schedule Bot'
@@ -49,9 +56,4 @@ jobs:
             echo "there was nothing, bruh"
           fi
 
-        - name: Загрузить скриншоты ошибок (если были)
-        if: failure()  # Выполнять только если скрипт упал
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-screenshots
-          path: ./*.png
+          
