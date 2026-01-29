@@ -43,10 +43,10 @@ def main():
         message = ""
 
         if 115 <= minutes_diff <= 125:
-            message = f"емае, уже через 2 часа пара: {item['subject']}, в {item['time']}.\nбудет в: {item['room']}"
+            message = f"емае, уже через 2 часа пара: {item['subject']}, в {item['time']}. будет в: {item['room']}"
 
         elif 55 <= minutes_diff <= 65:
-            message = f"пиздяо, уже через час пара: {item['subject']}, в {item['time']}.\nбудет в: {item['room']}"
+            message = f"пиздяо, уже через час пара: {item['subject']}, в {item['time']}. будет в: {item['room']}"
 
         if message:
             print(f"Отправляю: {message}")

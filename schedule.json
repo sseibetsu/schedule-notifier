@@ -7,8 +7,14 @@
   },
   {
     "day_of_week": 3,
-    "time": "19:00",
+    "time": "19:30",
     "subject": "Моделирование и симуляция для компьютерных наук",
+    "room": "Онлайн"
+  },
+  {
+    "day_of_week": 3,
+    "time": "19:00",
+    "subject": "qweqweqweqweqwe",
     "room": "Онлайн"
   }
 ]
