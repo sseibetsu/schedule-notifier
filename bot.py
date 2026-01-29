@@ -22,7 +22,7 @@ async def send_reminder(text):
 def main():
     # 1. Получаем текущее время в твоем часовом поясе
     now = datetime.datetime.now(TIMEZONE)
-    current_weekday = now.weekday()  # 0-6
+    current_weekday = now.weekday()  # monday = 0, sunday = 6
 
     # Загружаем расписание
     with open('schedule.json', 'r', encoding='utf-8') as f:
